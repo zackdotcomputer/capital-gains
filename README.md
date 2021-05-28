@@ -1,21 +1,21 @@
-# Next.js with react-bootstrap example
+# Capital Gains Calculator
 
-This example shows how to use Next.js along with [react-bootstrap](https://react-bootstrap.github.io/).
+This is a quick, dirty, and tbh fairly inaccurate attempt at a Capital Gains calculator.
 
-## Deploy your own
+## Problem:
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+You have tax reporting responsibilities to some jurisdiction like the UK or Australia that uses a non-calendar tax year. However, Wealthfront (and others) don't let you easily calculate your capital gains for a period other than the US tax year (calendar year).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-bootstrap&project-name=with-react-bootstrap&repository-name=with-react-bootstrap)
+## Solution:
 
-## How to use
+Not this. No warranty. I'm not a financial or tax expert, and I'm definitely not YOUR expert.
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+BUT if you want to get an idea of the rough magnitude of your capital gains, this is a node/next webapp that can ingest a QFX or OFX file (used for transferring transaction history between software - available from your Wealthfront statements page) and, for an arbitrary calendar period, can attempt to calculate your capital gains or losses.
 
-```bash
-npx create-next-app --example with-react-bootstrap with-react-bootstrap-app
-# or
-yarn create next-app --example with-react-bootstrap with-react-bootstrap-app
-```
+## Caveats:
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Infinite. See above about no warranty and how I'm not an expert.
+
+Additionally, I have run this on my Wealthfront export and compared the results to the 1099 reports Wealthfront has set me and they have not agreed. They were, in my case, within the approximate order of magnitude (indeed, the error was less than 100%), but something is definitely incorrect with some combination of: my math, javascript's handling of floating point numbers, my understanding of the QFX standard, Wealthfront's reporting.
+
+If you have any insight, please open a PR.
