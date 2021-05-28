@@ -38,7 +38,7 @@ const handler: NextApiHandler = async (req, res) => {
 
     const parsedAccounts = ofxFullParse(data);
 
-    res.status(200).json({});
+    res.status(200).json(parsedAccounts);
   } catch (e) {
     console.error("Error encountered", e);
     res.status(500).json({ error: "There was an error receiving your file" });

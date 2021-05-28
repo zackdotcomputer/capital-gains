@@ -1,17 +1,16 @@
 import { DateTime } from "luxon";
-import { Balance, parseBalance } from "./Balance";
-import parseHorribleDate from "./parsehorribleDate";
-import { Security } from "./Security";
-import { ALL_TRANSACTION_TYPES, parseTransaction, Transaction } from "./Transaction";
-
-export interface AccountStatement {
-  asOf: DateTime;
-  currency: string;
-
-  transactions: Transaction[];
-  // positions: Position[];
-  balance: Balance;
-}
+import { parseBalance } from "./Balance";
+import parseHorribleDate from "./parseDate";
+import { parseTransaction } from "./Transaction";
+import {
+  AccountStatement,
+  ALL_TRANSACTION_TYPES,
+  isBuySellTransaction,
+  isSplitTransaction,
+  isTransferTransaction,
+  Security,
+  Transaction
+} from "./types";
 
 export function parseStatement(ofx: any, securities: Security[]): AccountStatement | null {
   if (typeof ofx !== "object") {
@@ -31,7 +30,7 @@ export function parseStatement(ofx: any, securities: Security[]): AccountStateme
     currency = ofx.CURDEF;
   }
 
-  let asOf = DateTime.now();
+  let asOf = String(DateTime.now().toMillis());
   if ("DTASOF" in ofx) {
     asOf = parseHorribleDate(ofx.DTASOF);
   }
@@ -58,7 +57,7 @@ function parseTransactionList(ofx: any, securities: Security[]): Transaction[] {
     securityMap[s.id] = s;
   });
 
-  return ALL_TRANSACTION_TYPES.flatMap((key): Transaction[] => {
+  let transactions = ALL_TRANSACTION_TYPES.flatMap((key): Transaction[] => {
     const l = ofx[key];
     if (!l) {
       return [];
@@ -74,4 +73,28 @@ function parseTransactionList(ofx: any, securities: Security[]): Transaction[] {
       }
     }
   });
+
+  transactions.sort((a, b) => {
+    return Number(a.time) - Number(b.time);
+  });
+
+  // Roll in any splits
+  for (let i = 0; i < transactions.length; i++) {
+    const t = transactions[i];
+    if (isSplitTransaction(t)) {
+      const r = t.ratio;
+      for (let j = 0; j < i; j++) {
+        const mod = transactions[j];
+        if (
+          (isTransferTransaction(mod) || isBuySellTransaction(mod)) &&
+          mod.security.id === t.security.id
+        ) {
+          mod.units = mod.units * r;
+          mod.unitPrice = mod.unitPrice / r;
+        }
+      }
+    }
+  }
+
+  return transactions;
 }

@@ -1,12 +1,13 @@
 import { DateTime } from "luxon";
 import { parseStatement } from "./AccountStatement";
-import { parseSecurity, Security } from "./Security";
+import { parseSecurity } from "./Security";
+import { FullOfxParse, Security } from "./types";
 
-export default function ofxFullParse(ofx: any) {
+export default function ofxFullParse(ofx: any): FullOfxParse {
   const trueOfx = ofx?.OFX;
 
   if (!trueOfx) {
-    return null;
+    throw Error("Invalid File");
   }
 
   const rawSeclist: any[] = trueOfx.SECLISTMSGSRSV1 ?? [];
@@ -17,10 +18,14 @@ export default function ofxFullParse(ofx: any) {
   const rawStatement = trueOfx.INVSTMTMSGSRSV1 ?? {};
   const account = parseStatement(rawStatement, securities);
 
+  if (!account) {
+    throw Error("Couldn't parse account");
+  }
+
   console.log(
-    `Parsed account as of ${account.asOf.toLocaleString(DateTime.DATETIME_MED)} with balance of ${
-      account.balance.cash
-    }`
+    `Parsed account as of ${DateTime.fromMillis(Number(account.asOf)).toLocaleString(
+      DateTime.DATETIME_MED
+    )} with balance of ${account.balance.cash}`
   );
 
   const untrackedSecurities = account.transactions.flatMap((t) =>

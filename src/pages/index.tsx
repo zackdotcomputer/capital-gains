@@ -47,8 +47,8 @@ export default function Home() {
       })
         .then(async (r) => {
           const res = await r.json();
-          if (res.accountInfo) {
-            localStorage.setItem("accountInfo", JSON.stringify(res.accountInfo));
+          if (res) {
+            localStorage.setItem("accountInfo", JSON.stringify(res));
             router.push("/view");
           } else {
             alert("Something went wrong parsing that file...");

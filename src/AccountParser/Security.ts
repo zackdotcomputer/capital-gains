@@ -1,9 +1,4 @@
-export interface Security {
-  name?: string;
-  ticker?: string;
-  idType: string;
-  id: string;
-}
+import { Security } from "./types";
 
 export function parseSecurity(ofx: any): Security | null {
   if (typeof ofx !== "object") {

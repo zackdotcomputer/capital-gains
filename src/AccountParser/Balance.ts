@@ -1,8 +1,4 @@
-export interface Balance {
-  cash: number;
-  margin: number;
-  short: number;
-}
+import { Balance } from "./types";
 
 export function parseBalance(ofx: any): Balance {
   return {

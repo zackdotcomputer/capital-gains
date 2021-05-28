@@ -1,97 +1,15 @@
-import { DateTime } from "luxon";
-import parseHorribleDate from "./parsehorribleDate";
-import { Security } from "./Security";
-
-export enum TransactionType {
-  BUYDEBT = "BUYDEBT",
-  BUYMF = "BUYMF",
-  BUYOPT = "BUYOPT",
-  BUYOTHER = "BUYOTHER",
-  BUYSTOCK = "BUYSTOCK",
-  CLOSUREOPT = "CLOSUREOPT",
-  INCOME = "INCOME",
-  INVEXPENSE = "INVEXPENSE",
-  JRNLFUND = "JRNLFUND",
-  JRNLSEC = "JRNLSEC",
-  MARGININTEREST = "MARGININTEREST",
-  REINVEST = "REINVEST",
-  RETOFCAP = "RETOFCAP",
-  SELLDEBT = "SELLDEBT",
-  SELLMF = "SELLMF",
-  SELLOPT = "SELLOPT",
-  SELLOTHER = "SELLOTHER",
-  SELLSTOCK = "SELLSTOCK",
-  SPLIT = "SPLIT",
-  TRANSFER = "TRANSFER",
-  INVBANKTRAN = "INVBANKTRAN"
-}
-
-export const ALL_TRANSACTION_TYPES = [
-  TransactionType.BUYDEBT,
-  TransactionType.BUYMF,
-  TransactionType.BUYOPT,
-  TransactionType.BUYOTHER,
-  TransactionType.BUYSTOCK,
-  TransactionType.CLOSUREOPT,
-  TransactionType.INCOME,
-  TransactionType.INVEXPENSE,
-  TransactionType.JRNLFUND,
-  TransactionType.JRNLSEC,
-  TransactionType.MARGININTEREST,
-  TransactionType.REINVEST,
-  TransactionType.RETOFCAP,
-  TransactionType.SELLDEBT,
-  TransactionType.SELLMF,
-  TransactionType.SELLOPT,
-  TransactionType.SELLOTHER,
-  TransactionType.SELLSTOCK,
-  TransactionType.SPLIT,
-  TransactionType.TRANSFER,
-  TransactionType.INVBANKTRAN
-];
-
-type BuySellType =
-  | TransactionType.BUYMF
-  | TransactionType.BUYSTOCK
-  | TransactionType.SELLMF
-  | TransactionType.SELLSTOCK;
-
-export interface Transaction {
-  type: TransactionType;
-  time: DateTime;
-}
-
-export interface SplitTransaction extends Transaction {
-  type: TransactionType.SPLIT;
-  security: Security;
-  ratio: number;
-}
-
-export interface BankTransaction extends Transaction {
-  type: TransactionType.INVBANKTRAN;
-  amount: number;
-}
-
-export interface DividendTransaction extends Transaction {
-  type: TransactionType.INCOME;
-  amount: number;
-  security: Security;
-}
-
-export interface BuySellTransaction extends Transaction {
-  type: BuySellType;
-  amount: number; // Should equal -1 * units * unitPrice because it's a trade
-  security: Security;
-  units: number; // Positive for buys, negative for sells
-  unitPrice: number; // Should be always positive
-}
-
-export interface TransferTransaction extends Transaction {
-  type: TransactionType.TRANSFER;
-  security: Security;
-  units: number; // Positive for transfers in, negative for out
-  costBasis: number; // Should be always positive
-}
+import parseHorribleDate from "./parseDate";
+import {
+  BankTransaction,
+  BuySellTransaction,
+  BuySellType,
+  DividendTransaction,
+  Security,
+  SplitTransaction,
+  Transaction,
+  TransactionType,
+  TransferTransaction
+} from "./types";
 
 export function parseTransaction(
   ofx: any,
@@ -170,7 +88,7 @@ function parseDividend(
 
   return {
     type: TransactionType.INCOME,
-    time: parseHorribleDate(ofx.INVTRAN.DTSETTLE),
+    time: parseHorribleDate(ofx.INVTRAN.DTTRADE),
     amount: Number(ofx.TOTAL),
     security
   };
@@ -208,12 +126,28 @@ function parseBuySell(
     };
   }
 
+  const units = Number(invObj.UNITS);
+  const time = parseHorribleDate(invObj.INVTRAN.DTTRADE);
+
+  let outputType = type;
+
+  if (isSell && units > 0) {
+    console.warn(`Flipping sell of ${security.id} on ${time}`);
+    outputType = type === TransactionType.SELLMF ? TransactionType.BUYMF : TransactionType.BUYSTOCK;
+  }
+
+  if (!isSell && units < 0) {
+    console.warn(`Flipping buy of ${security.id} on ${time}`);
+    outputType =
+      type === TransactionType.BUYMF ? TransactionType.SELLMF : TransactionType.SELLSTOCK;
+  }
+
   return {
-    type,
-    time: parseHorribleDate(invObj.INVTRAN.DTSETTLE),
-    amount: Number(ofx.TOTAL),
+    type: outputType,
+    time,
+    amount: Number(invObj.TOTAL),
     security,
-    units: Number(invObj.UNITS),
+    units,
     unitPrice: Number(invObj.UNITPRICE)
   };
 }
@@ -239,12 +173,18 @@ function parseTransfer(
     };
   }
 
+  const units = Number(ofx.UNITS);
+
+  if (isNaN(units) || units === 0) {
+    return null;
+  }
+
   return {
     type: TransactionType.TRANSFER,
-    time: parseHorribleDate(ofx.INVTRAN.DTSETTLE),
+    time: parseHorribleDate(ofx.INVTRAN.DTTRADE),
     security,
-    units: Number(ofx.UNITS),
-    costBasis: Number(ofx.AVGCOSTBASIS)
+    units,
+    unitPrice: Number(ofx.AVGCOSTBASIS ?? "0") / units
   };
 }
 
@@ -283,7 +223,7 @@ function parseSplit(ofx: any, securitiesMap: Record<string, Security>): SplitTra
 
   return {
     type: TransactionType.SPLIT,
-    time: parseHorribleDate(ofx.INVTRAN.DTSETTLE),
+    time: parseHorribleDate(ofx.INVTRAN.DTTRADE),
     ratio: newUnits / oldUnits,
     security
   };
